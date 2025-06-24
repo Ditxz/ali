@@ -1,10 +1,10 @@
 fastapi
 uvicorn
-ccxt.pro
-python-telegram-bot==20.6 # Menggunakan versi 20.x
-pandas
-numpy
-scikit-learn # Untuk dummy AI model
+ccxt # Diubah dari ccxt.pro untuk memungkinkan instalasi
+python-telegram-bot==20.6
+pandas==1.5.3 # Memasang versi spesifik yang stabil untuk Python 3.10
+numpy==1.23.5 # Memasang versi spesifik yang stabil untuk Python 3.10
+scikit-learn==1.2.2 # Memasang versi spesifik yang stabil untuk Python 3.10
 SQLAlchemy
 pyyaml
-python-dotenv # Untuk development lokal, Railway akan menggunakan env vars langsung
+python-dotenv
