@@ -1,0 +1,10 @@
+fastapi
+uvicorn
+ccxt.pro
+python-telegram-bot==20.6 # Menggunakan versi 20.x
+pandas
+numpy
+scikit-learn # Untuk dummy AI model
+SQLAlchemy
+pyyaml
+python-dotenv # Untuk development lokal, Railway akan menggunakan env vars langsung

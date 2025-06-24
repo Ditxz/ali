@@ -1,0 +1,61 @@
+# Konfigurasi Binance API (pastikan memiliki akses Futures dan API Key Read-Only/Trade)
+BINANCE_API_KEY: "YOUR_BINANCE_API_KEY"
+BINANCE_SECRET_KEY: "YOUR_BINANCE_SECRET_KEY"
+
+# Konfigurasi Telegram Bot
+TELEGRAM_BOT_TOKEN: "YOUR_TELEGRAM_BOT_TOKEN"
+TELEGRAM_CHAT_ID: "YOUR_TELEGRAM_CHAT_ID" # ID chat grup atau pengguna tempat sinyal akan dikirim
+
+# Daftar Pair Crypto Futures yang akan di-scan
+SYMBOLS:
+  - BTCUSDT
+  - ETHUSDT
+  - SOLUSDT
+  - OPUSDT
+  - XRPUSDT
+  - BNBUSDT
+  - ADAUSDT
+  - DOGEUSDT
+  - LINKUSDT
+  - DOTUSDT
+  - LTCUSDT
+  - TRXUSDT
+  - AVAXUSDT
+  - MATICUSDT
+  - BCHUSDT
+
+# Timeframe yang akan dianalisis (ccxt format)
+TIMEFRAMES:
+  - 5m
+  - 15m
+  - 1h # Digunakan sebagai trend filter
+
+# Interval pemindaian sinyal (dalam detik)
+SCAN_INTERVAL_SECONDS: 30 # Direkomendasikan 30-60 detik untuk real-time
+
+# Parameter Indikator Teknis
+EMA_PERIODS:
+  - 13
+  - 34
+  - 50
+  - 200
+RSI_PERIOD: 14
+CCI_PERIOD: 14
+MACD_FAST_PERIOD: 12
+MACD_SLOW_PERIOD: 26
+MACD_SIGNAL_PERIOD: 9
+SSL_HYBRID_PERIOD: 20 # Periode untuk EMA SSL Hybrid
+
+# Parameter Manajemen Risiko
+DEFAULT_LEVERAGE: 10 # Leverage default yang akan digunakan dalam sinyal
+TP_RATIO: 1.5       # Take Profit Ratio (misal: 1.5x dari SL)
+SL_RATIO: 0.5       # Stop Loss Ratio (misal: 0.5% dari entry price)
+RISK_PER_TRADE_PERCENT: 1.0 # Risiko per trade sebagai persentase dari total modal (dummy, tidak digunakan untuk menghitung posisi)
+
+# Konfigurasi AI Model
+AI_MODEL_PATH: "model/ai_model.pkl"
+AI_THRESHOLD_STRONG_BUY: 0.85 # Threshold untuk sinyal "BUY STRONG"
+AI_THRESHOLD_STRONG_SELL: 0.15 # Threshold untuk sinyal "SELL STRONG"
+
+# Konfigurasi Database (SQLite)
+DATABASE_URL: "sqlite:///data/logs.db"
