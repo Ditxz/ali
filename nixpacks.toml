@@ -1,0 +1,11 @@
+# nixpacks.toml
+[build]
+apt_packages = [
+    "build-essential",
+    "pkg-config",      # Umumnya diperlukan oleh beberapa pustaka C/C++
+    "python3.10-dev",  # Coba spesifik ke Python 3.10 (umum di Railway/Ubuntu terbaru)
+    "libatlas-base-dev",
+    "gfortran",
+    "libopenblas-dev", # Alternatif atau tambahan untuk libatlas
+    "liblapack-dev"    # Alternatif atau tambahan untuk libatlas
+]
