@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 # --- Load Environment Variables ---
 load_dotenv()
+print("✅ ENV DETECTED PORT:", os.getenv("PORT"))
 
 # --- Global Configuration from Environment Variables ---
 BINANCE_API_KEY = os.getenv('BINANCE_API_KEY')
@@ -1184,4 +1185,3 @@ if __name__ == "__main__":
         uvicorn.run("main:app", host="0.0.0.0", port=int(os.getenv("PORT", 8000)))
     except Exception as e:
         logger.error(f"Uvicorn server failed to start: {e}")
-
