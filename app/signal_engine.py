@@ -2,13 +2,12 @@ import ccxt.pro as ccxt
 import pandas as pd
 import numpy as np
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from sqlalchemy import create_engine, Column, Integer, String, Float, DateTime
 from sqlalchemy.orm import sessionmaker, declarative_base
 from app.config import settings
 from app.ai_filter import AIFilter
-from app.telegram_bot import TelegramBot
-import os
+from app.telegram_bot import TelegramBot # Tetap diimpor karena AI membutuhkan ini untuk inisialisasi
 
 # Konfigurasi Database (SQLite)
 Base = declarative_base()
@@ -35,12 +34,12 @@ class SignalLog(Base):
 class SignalEngine:
     def __init__(self):
         """
-        Menginisialisasi SignalEngine dengan pengaturan, AI filter, bot Telegram,
-        dan koneksi bursa.
+        Menginisialisasi SignalEngine dengan pengaturan, AI filter,
+        dan koneksi bursa. TelegramBot tidak lagi diinisialisasi di sini
+        karena pengiriman sinyal akan dikelola oleh main.py.
         """
         self.settings = settings
-        self.ai_filter = AIFilter()
-        self.telegram_bot = TelegramBot()
+        self.ai_filter = AIFilter() # AIFilter masih butuh, jadi tetap di sini
 
         # Inisialisasi koneksi Binance Futures
         self.exchange = ccxt.binance({
@@ -53,12 +52,6 @@ class SignalEngine:
             'enableRateLimit': True, # Untuk menghindari pembatasan rate
         })
 
-        # Inisialisasi Database
-        engine = create_engine(self.settings.get("DATABASE_URL"))
-        Base.metadata.create_all(engine)
-        self.Session = sessionmaker(bind=engine)
-        self.db_session = self.Session()
-
         self.last_scan_times = {} # Untuk melacak kapan terakhir kali setiap pair di-scan
 
     async def _fetch_ohlcv(self, symbol: str, timeframe: str, limit: int = 200) -> pd.DataFrame:
@@ -68,7 +61,7 @@ class SignalEngine:
         try:
             ohlcv = await self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
             if not ohlcv:
-                print(f"Peringatan: Tidak ada data OHLCV yang diambil untuk {symbol} ({timeframe}).")
+                # print(f"Peringatan: Tidak ada data OHLCV yang diambil untuk {symbol} ({timeframe}).")
                 return pd.DataFrame()
 
             df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
@@ -351,13 +344,14 @@ class SignalEngine:
 
         return tp_1_price, tp_2_price, sl_price
 
-    async def scan_pairs(self):
+    async def scan_pairs(self) -> list[dict]:
         """
         Memindai semua pair yang dikonfigurasi pada timeframe yang ditentukan,
-        menghitung indikator, menerapkan strategi, dan mengirim sinyal.
+        menghitung indikator, menerapkan strategi, dan MENGEMBALIKAN sinyal yang ditemukan.
         """
         symbols = self.settings.get('SYMBOLS')
         timeframes = self.settings.get('TIMEFRAMES')
+        found_signals = []
         
         # Ambil data 1h untuk trend filter terlebih dahulu
         timeframe_1h_data = {}
@@ -367,8 +361,8 @@ class SignalEngine:
                 if not df_1h.empty:
                     df_1h = self._calculate_ema(df_1h, [13, 34, 200]) # Hanya butuh EMA untuk trend 1h
                     timeframe_1h_data[symbol] = df_1h
-                else:
-                    print(f"Tidak dapat mengambil data 1h untuk {symbol}. Trend filter mungkin tidak akurat.")
+                # else:
+                #     print(f"Tidak dapat mengambil data 1h untuk {symbol}. Trend filter mungkin tidak akurat.")
 
         for symbol in symbols:
             current_time = datetime.now()
@@ -392,12 +386,12 @@ class SignalEngine:
 
                 df_with_indicators = self._calculate_all_indicators(df)
                 if df_with_indicators.empty:
-                    print(f"Tidak cukup data setelah menghitung indikator untuk {symbol} ({tf}).")
+                    # print(f"Tidak cukup data setelah menghitung indikator untuk {symbol} ({tf}).")
                     continue
 
                 # Pastikan ada cukup data untuk indikator (misalnya, setelah dropna)
                 if len(df_with_indicators) < 2: # Setidaknya 2 candle untuk perbandingan
-                    print(f"Tidak cukup data candle untuk {symbol} ({tf}) setelah kalkulasi indikator.")
+                    # print(f"Tidak cukup data candle untuk {symbol} ({tf}) setelah kalkulasi indikator.")
                     continue
 
                 signal_type, signal_strength = self._apply_trading_strategies(df_with_indicators, df_1h_for_trend)
@@ -444,63 +438,20 @@ class SignalEngine:
                         'ai_score': ai_score,
                         'confidence_emoji': confidence_emoji
                     }
-
-                    # Kirim sinyal ke Telegram
-                    await self.telegram_bot.send_signal(signal_data)
-
-                    # Catat sinyal ke database
-                    self._log_signal(signal_data)
-                else:
-                    print(f"Tidak ada sinyal yang teridentifikasi untuk {symbol} ({tf}).")
+                    found_signals.append(signal_data)
+                # else:
+                #     print(f"Tidak ada sinyal yang teridentifikasi untuk {symbol} ({tf}).")
         
         print(f"Pemindaian semua pair selesai pada {datetime.now().strftime('%H:%M:%S')}")
+        return found_signals
 
-
-    def _log_signal(self, signal_data: dict):
-        """Mencatat sinyal yang dikirim ke database."""
-        try:
-            new_log = SignalLog(
-                pair=signal_data['pair'],
-                timeframe=signal_data['timeframe'],
-                signal_type=signal_data['signal'],
-                entry=signal_data['entry'],
-                tp1=signal_data['tp1'],
-                tp2=signal_data['tp2'],
-                sl=signal_data['sl'],
-                ai_score=signal_data['ai_score'],
-                confidence_emoji=signal_data['confidence_emoji']
-            )
-            self.db_session.add(new_log)
-            self.db_session.commit()
-            print(f"Sinyal dicatat ke DB: {signal_data['pair']} {signal_data['signal']}")
-        except Exception as e:
-            self.db_session.rollback() # Rollback jika ada kesalahan
-            print(f"Kesalahan saat mencatat sinyal ke database: {e}")
-
-    async def run_scanner(self):
-        """Menjalankan scanner sinyal dalam loop tak terbatas."""
-        while True:
-            await self.scan_pairs()
-            await asyncio.sleep(self.settings.get("SCAN_INTERVAL_SECONDS"))
 
     async def close(self):
-        """Menutup koneksi bursa dan database."""
+        """Menutup koneksi bursa."""
         await self.exchange.close()
-        self.db_session.close()
-        print("SignalEngine dihentikan. Koneksi bursa dan DB ditutup.")
+        print("SignalEngine dihentikan. Koneksi bursa ditutup.")
 
-# Contoh penggunaan untuk pengujian lokal
-async def main():
-    engine = SignalEngine()
-    print("Memulai SignalEngine (akan berjalan dalam loop, Ctrl+C untuk menghentikan)...")
-    try:
-        await engine.run_scanner()
-    except KeyboardInterrupt:
-        print("Penghentian manual detektor sinyal.")
-    finally:
-        await engine.close()
-
-if __name__ == "__main__":
-    # Pastikan Anda telah menginstal semua dependensi dan mengisi config.yaml
-    # python -m app.signal_engine
-    asyncio.run(main())
+# Database initialization (moved to main.py, but kept here for SignalLog definition)
+engine = create_engine(settings.get("DATABASE_URL"))
+Base.metadata.create_all(engine)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
